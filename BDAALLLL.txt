@@ -1,0 +1,346 @@
+EXP - 6
+
+gedit f2;
+
+10,FINANCE,EDINBURGH
+20,SOFTWARE,PADDINGTON
+30,SALES,MAIDSTONE
+40,MARKETING,DARLINGTON
+50,ADMIN,BIRMINGHAM
+
+
+pig -x local 
+
+fs -ls
+
+ A = LOAD '/home/cloudera/f2' USING PigStorage(',') AS (a1:int,a2:chararray,a3:chararray) ;
+
+DESCRIBE A;
+
+dump a;
+
+B = FILTER A BY a2='FINANCE';
+
+dump B;
+
+f3 = foreach A generate a1,a2;
+ dump f3
+f4 = order  A by a2 desc;       
+dump f4;
+
+
+-----------------------------------------------------------
+
+
+ cat a.txt
+ 
+10
+20
+30
+40
+50
+60
+70
+80
+
+A = LOAD '/user/cloudera/a.txt' USING PigStorage() AS (age:int);
+
+dump A;
+
+gr= group A by age;
+
+
+gedit a.txt
+1,2,3
+4,2,1
+8,3,4
+4,3,3
+7,2,5
+8,4,3
+gedit b.txt;
+2,4
+8,9
+1,3
+2,7
+2,9
+4,6
+4,9
+SELF JOIN:
+
+ONE= load 'a.txt' using PigStorage(',') as (a1:int,a2:int,a3:int);
+TWO = load 'a.txt' using PigStorage(',') as (a1:int,a2:int,a3:int);
+
+SELFJ = JOIN ONE by a1 , TWO BY a1;
+dump SELFj;
+
+
+EQUI JOIN:
+
+ONE= load 'a.txt' using PigStorage(',') as (a1:int,a2:int,a3:int);
+TWO = load 'a.txt' using PigStorage(',') as (a1:int,a2:int,a3:int);
+
+SELFJ = JOIN ONE by a1 , TWO BY a1;
+dump SELFj;
+
+
+leftjoin----
+
+A = LOAD ‘A.txt' using PigStorage(',') AS (a1:int,a2:int,a3:int);
+B = LOAD, ‘B.txt' using PigStorage(',') AS (b1:int,b2:int);
+LEFTJ = JOIN A by a1 LEFT OUTER, B BY b1;
+DUMP LEFTJ;
+
+RightJoin--------
+
+A = LOAD ‘A.txt' using PigStorage(',') AS (a1:int,a2:int,a3:int);
+B = LOAD, ‘B.txt' using PigStorage(',') AS (b1:int,b2:int);
+RIGHTJ = JOIN A by a1 RIGHT OUTER, B BY b1;
+DUMP RIGHTJ;
+
+
+fulljoin-------
+A = LOAD ‘A.txt' using PigStorage(',') AS (a1:int,a2:int,a3:int);
+B = LOAD, ‘B.txt' using PigStorage(',') AS (b1:int,b2:int);
+FULLJ = JOIN A by a1 FULL, B BY b1;
+DUMP FULl;
+
+c = UNION a, b;
+
+SPLIT c into sp1 if $0 == 4, sp2 if $0 == 8;
+
+
+
+exp 8 -----------------
+
+
+Open Oracle VM Virtual box -> click start -> open cloudera -> open eclipse.
+
+import java.io.IOException;
+ import org.apache.pig.EvalFunc;
+ import org.apache.pig.data.Tuple;
+ public class UPPER extends EvalFunc<String>
+{
+ public String exec(Tuple input) throws IOException {
+ if (input == null || input.size() == 0 || input.get(0) == null)
+ return null;
+ try{
+ String str = (String)input.get(0);
+ return str.toUpperCase();
+ }catch(Exception e){
+ throw new IOException("Caught exception processing input row ", e);
+ }
+ }
+ }  UPPER
+gedit pigsample2.txt
+
+
+1, Divya, CSE
+2, Padhu, CSE
+3, Mouni, CSE
+4, Nuthana, IT
+5, Suma, IT
+5, Swathi, AIDS
+7, Raju, ECE
+B, Manoj, ECE
+, Rakesh, EEE
+10, Suresh, AIML
+
+
+
+REGISTER udf.jar
+
+DEFINE myfun UPPER();
+
+stu= load '/home/cloudera/pigsample2.txt'   using PigStorage(',' )as (sid:int,sname: chararray, dept:chararray); 
+
+
+stu_UPPER = FOREACH stu GENERATE myfun(sname);
+
+
+DUMP stu_UPPER;
+
+exp 9 ------------------------------------
+
+
+hive
+CREATE DATABASE [IF NOT EXISTS] student;
+CREATE SCHEMA student;
+ show databases;
+
+
+drop database student;
+
+create table stu(sno int, name string, branch string);
+
+ describe stu;
+or 
+
+CREATE TABLE student ( 
+    rno INT,
+    name STRING,
+    branch STRING
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ' '
+STORED AS TEXTFILE;
+
+
+gedit sample.txt
+
+501 Ravi CSE
+502 Rani CSE
+1201 Raja IT
+1202 Roja IT
+4201 vinay AI&ML
+
+load data local inpath '/home/cloudera/sample.txt' overwrite into table stu;
+
+
+
+ALTER TABLE stu RENAME TO emp;
+
+alter table stu add columns(total string);
+alter table stu drop columns(total string);
+alter table stu change sno rno int;
+
+//sel
+DELETE FROM students WHERE rno=4201;
+drop table emp;
+
+exp 10 ------------------------------------
+
+
+select * from table;
+
+
+select * from student order by sno asc;
+
+select * from student sort by sno desc;
+
+select min(m1) from student;
+
+select max(m1) from student;
+
+
+select count(*) from student;
+
+select sum(m1) from student;
+
+
+SELECT sales.*, products.*
+FROM sales
+JOIN products ON sales.pid = products.prodid;
+
+SELECT sales.*, products.*
+FROM sales
+LEFT OUTER JOIN products ON sales.pid = products.prodid; 
+
+SELECT sales.*, products.*
+FROM sales
+RIGHT OUTER JOIN products ON sales.pid = products.prodid; 
+
+
+SELECT sales.*, products.*
+FROM sales
+RIGHT OUTER JOIN products ON sales.pid = products.prodid; 
+
+exp12----------------------------------------------
+
+
+create table student( ID String, name String, marksint) ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
+STORED AS TEXTFILE;
+load data local inpath '/home/cloudera /fi.txt' into table student;
+
+add jar /home/cloudera /hivefunction.jar;
+create temporary function lowe_leters as 'hiveudf';
+select lowe_leters(name) from student;
+hive –f filename.q 
+
+
+
+hive> create table nn(n1 int,n2 int)
+    > row format delimited
+    > fields terminated by ' '
+    > lines terminated by '\n'
+    > stored as textfile;
+
+hive> create table pp(p1 int,p2 int)
+    > row format delimited
+    > fields terminated by ' '
+    > lines terminated by '\n'
+    > stored as textfile;
+
+load data local inpath '/home/cloudera /s1.txt' into table nn;
+load data local inpath '/home/cloudera /s2.txt' into table pp;
+
+
+
+
+hive> select nn.*,ppp.*
+    > from nn  
+    > join ppp on nn.n1= ppp.p1;
+
+
+hive> select nn.*,ppp.*
+    > from nn  
+    > left outer join ppp on nn.n1= ppp.p1;
+
+
+hive> select nn.*,ppp.*
+    > from nn  
+    > right outer join ppp on nn.n1= ppp.p1;
+
+
+
+exp 11 ----------------
+
+create view sview
+ as select * from nn;
+
+select * from sview;
+
+alter view svieww as select * from sview;
+
+DROP VIEW IF EXISTS svieww;
+
+
+CREATE INDEX index_sno ON TABLE nn (n1)
+AS 'org.apache.hadoop.hive.ql.index.compact.CompactIndexHandler'
+WITH DEFERRED REBUILD;
+SHOW INDEX ON student;
+ALTER INDEX index_sno ON nn REBUILD;
+
+BITmapping
+
+
+CREATE INDEX index_sno ON TABLE nn (n1)
+AS 'BITMAP'
+WITH DEFERRED REBUILD;
+
+SHOW INDEX ON student;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
