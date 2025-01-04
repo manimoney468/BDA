@@ -1,3 +1,380 @@
+
+// Word Count Mapper program
+
+import java.io.IOException;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+
+ 
+public class WordCountMapper extends
+		Mapper<LongWritable, Text, Text, LongWritable> {
+	
+	private final static LongWritable one = new LongWritable(1);
+
+	@Override
+	protected void map(LongWritable key, Text value, Context context)
+			throws IOException, InterruptedException {
+		String line = value.toString();
+		String[] words = line.split(" ");
+		for (int i = 0; i < words.length; i++) {
+			context.write(new Text(words[i]), one);
+		}
+	}
+}
+
+
+// Word Count Reducer program
+
+
+import java.io.IOException;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.io.Text;
+
+public class WordCountReducer extends Reducer<Text,LongWritable,Text,LongWritable> 
+{
+	@Override
+	protected void reduce(Text key,Iterable<LongWritable> value,Context context)throws IOException,InterruptedException
+	{
+		long sum=0;
+		while(value.iterator().hasNext())
+		{
+			sum+=value.iterator().next().get();
+		}
+		context.write(key,new LongWritable(sum));
+	}
+}
+
+
+// Word count Driver Program
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.util.ToolRunner;
+import org.apache.hadoop.util.Tool;
+public class WordCountJob implements Tool{
+	private Configuration conf;
+	@Override
+	public Configuration getConf()
+	{
+	return conf;
+	}
+	@Override
+	public void setConf(Configuration conf)
+	{
+		this.conf=conf;
+	}
+	@Override
+	public int run(String []args)throws Exception
+	{
+		Job wordcountjob=new Job(getConf());
+		wordcountjob.setJobName("mat word count");
+		wordcountjob.setJarByClass(this.getClass());
+		wordcountjob.setMapperClass(WordCountMapper.class);
+		wordcountjob.setReducerClass(WordCountReducer.class);
+				
+		wordcountjob.setMapOutputKeyClass(Text.class);
+		wordcountjob.setMapOutputValueClass(LongWritable.class);
+		wordcountjob.setOutputKeyClass(Text.class);
+		wordcountjob.setOutputValueClass(LongWritable.class);
+		FileInputFormat.setInputPaths(wordcountjob,new Path(args[0]));
+		FileOutputFormat.setOutputPath(wordcountjob,new Path(args[1]));
+		wordcountjob.setNumReduceTasks(2);
+		return wordcountjob.waitForCompletion(true)==true? 0:1;
+	}
+	public static void main(String []args)throws Exception
+	{
+		ToolRunner.run(new Configuration(),new WordCountJob(),args);
+	}
+
+}
+
+
+Execution procedure
+
+CREATE JAR FILE IN ECLIPSE
+=========================
+
+CREATE AN NPUT FILE IN LOCAL FILESYSTEM
+======================================
+
+cloudera@localhost ~]$ gedit wc1.txt
+Hadoop is the Elephant King!
+A yellow and elegant thing.
+He never forgets
+Useful data, or lets
+An extraneous element cling!
+
+COPY INPUT FIL INTO HDFS 
+===============================================
+
+[cloudera@localhost ~]$ hadoop fs -put wc1.txt word
+
+
+ 
+RUN THE PROGRAM
+===============
+
+[cloudera@localhost ~]$ hadoop jar wcount.jar WordCountJob wc1.txt wordout
+
+
+OUTPUT::
+========
+
+[cloudera@localhost ~]$ hadoop fs -ls wordout
+
+Found 4 items
+-rw-r--r--   3 cloudera cloudera          0 2016-06-10 00:01 wordout/_SUCCESS
+drwxr-xr-x   - cloudera cloudera          0 2016-06-10 00:00 wordout/_logs
+-rw-r--r--   3 cloudera cloudera        135 2016-06-10 00:01 wordout/part-r-00000
+-rw-r--r--   3 cloudera cloudera        200 2016-06-10 00:01 wordout/part-r-00001
+
+SEE THE CONTENTS OF THE REDUCER OUTPUT FILES
+============================================
+
+[cloudera@localhost ~]$ hadoop fs -cat wordout/part-r-00000
+But	1
+HDFS	1
+Hadoop	1
+Hadoop.	1
+He	1
+Hive,	1
+The	1
+data,	1
+forgets	1
+helps	1
+him	1
+lets	1
+never	1
+plays	1
+the	2
+thing.	1
+thrive	1
+to	1
+[cloudera@localhost ~]$ hadoop fs -cat wordout/part-r-00001
+A	2
+An	1
+And	1
+Are	1
+Elephant	1
+Impala,	1
+King!	1
+Sqoop.	1
+Useful	1
+and	2
+cling!	1
+elegant	1
+element	1
+elephant	1
+extraneous	1
+group.	1
+in	1
+is	2
+king	1
+or	1
+well	1
+what	1
+with	1
+wonderful	1
+yellow	1
+
+
+// Max Temperature Driver program
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+//import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+public class MaxTemperature {
+public static void main(String[] args) throws Exception {
+if (args.length != 2) {
+System.err.println("Usage: MaxTemperature <input path> <output path>");
+System.exit(-1);
+}
+Job job = new Job();
+job.setJarByClass(MaxTemperature.class);
+job.setJobName("Max temperature");
+FileInputFormat.addInputPath(job, new Path(args[0]));
+FileOutputFormat.setOutputPath(job, new Path(args[1]));
+job.setMapperClass(MaxTemperatureMapper.class);
+job.setReducerClass(MaxTemperatureReducer.class);
+job.setOutputKeyClass(Text.class);
+job.setOutputValueClass(IntWritable.class);
+System.exit(job.waitForCompletion(true) ? 0 : 1);
+}
+}
+// Max Temperature Mapper program
+import java.io.IOException;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+public class MaxTemperatureMapper
+extends Mapper<LongWritable, Text, Text, IntWritable> {
+private static final int MISSING = 9999;
+@Override
+public void map(LongWritable key, Text value, Context context)
+throws IOException, InterruptedException {
+String line = value.toString();
+String year = line.substring(15, 19);
+int airTemperature;
+if (line.charAt(87) == '+') { // parseInt doesn't like leading plus signs
+airTemperature = Integer.parseInt(line.substring(88, 92));
+} else {
+airTemperature = Integer.parseInt(line.substring(87, 92));
+}
+String quality = line.substring(92, 93);
+if (airTemperature != MISSING && quality.matches("[01459]")) {
+context.write(new Text(year), new IntWritable(airTemperature));
+}
+}
+}
+// Max Temperature Reducer program
+import java.io.IOException;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+public class MaxTemperatureReducer
+extends Reducer<Text, IntWritable, Text, IntWritable> {
+@Override
+public void reduce(Text key, Iterable<IntWritable> values,
+Context context)
+throws IOException, InterruptedException {
+int maxValue = Integer.MIN_VALUE;
+for (IntWritable value : values) {
+maxValue = Math.max(maxValue, value.get());
+}
+context.write(key, new IntWritable(maxValue));
+}
+}
+
+
+
+
+
+
+
+exp 55555555555555
+
+
+
+
+MatrixMultiplication:
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.conf.*;
+import org.apache.hadoop.io.*;
+import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+public class MatrixMultiplication {
+public static void main(String[] args) throws Exception {
+Configuration conf = new Configuration();
+// A is an m-by-n matrix; B is an n-by-p matrix.
+conf.set("m", "2");
+conf.set("n", "5");
+conf.set("p", "3");
+Job job = new Job(conf, "MatrixMultiplication");
+job.setJarByClass(MatrixMultiplication.class);
+job.setOutputKeyClass(Text.class);
+job.setOutputValueClass(Text.class);
+job.setMapperClass(MatrixMapper.class);
+job.setReducerClass(MatrixReducer.class);
+job.setInputFormatClass(TextInputFormat.class);
+job.setOutputFormatClass(TextOutputFormat.class);
+FileInputFormat.addInputPath(job, new Path(args[0]));
+FileOutputFormat.setOutputPath(job, new Path(args[1]));
+job.waitForCompletion(true);
+}
+}
+Create another class “MatrixMapper”
+
+Copy and paste the program:
+MatrixMapper:
+import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+public class MatrixMapper extends Mapper<LongWritable, Text,
+Text, Text> {
+public void map(LongWritable key, Text value, Context
+context) throws IOException, InterruptedException {
+Configuration conf = context.getConfiguration();
+int m = Integer.parseInt(conf.get("m"));
+int p = Integer.parseInt(conf.get("p"));
+String line = value.toString();
+String[] indicesAndValue = line.split(",");
+Text outputKey = new Text();
+Text outputValue = new Text();
+if (indicesAndValue[0].equals("A")) {
+for (int k = 0; k < p; k++) {
+outputKey.set(indicesAndValue[1] + "," + k);
+outputValue.set("A," + indicesAndValue[2] + "," +
+indicesAndValue[3]);
+context.write(outputKey, outputValue);
+}
+} else {
+for (int i = 0; i < m; i++) {
+outputKey.set(i + "," + indicesAndValue[2]);
+outputValue.set("B," + indicesAndValue[1] + "," +
+indicesAndValue[3]);
+context.write(outputKey, outputValue);
+}
+}
+}
+}Create another class “MatrixReducer”
+MatrixReducer:
+import java.io.IOException;
+import java.util.HashMap;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+public class MatrixReducer extends Reducer<Text, Text, Text, Text> {
+public void reduce(Text key, Iterable<Text> values, Context
+context) throws IOException, InterruptedException {
+String[] value;
+HashMap<Integer, Float> hashA = new HashMap<Integer,
+Float>();
+HashMap<Integer, Float> hashB = new HashMap<Integer,
+Float>();
+for (Text val : values) {
+value = val.toString().split(",");
+if (value[0].equals("A")) {
+hashA.put(Integer.parseInt(value[1]),
+Float.parseFloat(value[2]));
+} else {
+hashB.put(Integer.parseInt(value[1]),
+Float.parseFloat(value[2]));
+}
+}
+int n =
+Integer.parseInt(context.getConfiguration().get("n"));
+float result = 0.0f;
+float a_ij;
+float b_jk;
+for (int j = 0; j < n; j++) {
+a_ij = hashA.containsKey(j) ? hashA.get(j) : 0.0f;
+b_jk = hashB.containsKey(j) ? hashB.get(j) : 0.0f;
+result += a_ij * b_jk;
+}
+if (result != 0.0f) {
+context.write(null, new Text(key.toString() + "," +
+Float.toString(result)));
+}
+}
+}
+
+
+
 EXP - 6
 
 gedit f2;
